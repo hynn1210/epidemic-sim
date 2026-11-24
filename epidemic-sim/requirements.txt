@@ -1,0 +1,9 @@
+# [공통] 사용하는 라이브러리 목록
+# TODO: 첫날 가상환경을 만든 뒤 설치해 보고, 문제없으면 버전을 고정하기 (예: networkx==3.3)
+networkx
+matplotlib
+numpy
+streamlit
+jupyter
+pytest
+# scipy   # [A, 선택] 이론 비교를 scipy로 할 경우에만 주석 해제
