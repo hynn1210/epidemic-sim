@@ -17,6 +17,7 @@ Q = "Q"   # 격리
 STATES = [S, I, R, D, Q]
 
 
+
 # ------------------------------------------------------------
 # [공통] 상태별 색 (CLAUDE.md 11절, 확정)
 # ------------------------------------------------------------
@@ -30,14 +31,12 @@ STATE_COLORS = {
 
 
 # ------------------------------------------------------------
-# [공통] 네트워크 종류 이름
+# [공통] 네트워크 모양 (무작위형 + 슈퍼전파자)
 # ------------------------------------------------------------
-NETWORK_RANDOM = "random"   # 무작위형
-NETWORK_HUB = "hub"         # 허브형
-
-# TODO [공통] 네트워크 모양 기본값 정하기
-AVG_DEGREE = None   # 무작위형: 한 사람의 평균 친구 수
-HUB_M = None        # 허브형: 새 사람이 연결하는 친구 수
+# 기본은 무작위형: 대부분의 사람이 평균 친구 수 근처의 친구를 가진다.
+# 그중 몇 명을 슈퍼전파자로 골라 친구를 많이 붙여 준다. (몇 명인지는 DEFAULT_PARAMS의 "n_superspreaders")
+AVG_DEGREE = 4              # 보통 사람의 평균 친구 수
+SUPERSPREADER_FRIENDS = 30  # 슈퍼전파자 한 명의 친구 수 (추천값, 첫 실행 후 조정)
 
 
 # ------------------------------------------------------------
@@ -48,20 +47,20 @@ HUB_M = None        # 허브형: 새 사람이 연결하는 친구 수
 # TODO [공통] 각 값(None) 정하기
 DEFAULT_PARAMS = {
     # 네트워크
-    "population": None,        # 인구 수
-    "network_kind": None,      # NETWORK_RANDOM 또는 NETWORK_HUB
+    "population": 200,        # 인구 수
+    "n_superspreaders": 0,    # 슈퍼전파자 수 (0이면 순수 무작위형, 비교 실험에서 0/3/6 등으로 바꿈)
     # 시뮬레이션 (simulate() 인자와 이름 같음)
-    "beta": None,              # 전염률 (접촉 1번당 하루 감염 확률)
-    "recovery_days": None,     # 회복 기간 (일)
-    "fatality": None,          # 치사율
-    "initial_infected": None,  # 초기 감염자 수
-    "quarantine": None,        # 격리 on/off
-    "trace_depth": None,       # 추적 깊이 (1 또는 2)
-    "confirm_delay": None,     # 감염 후 확진까지 걸리는 일수
+    "beta": 0.1,              # 전염률 (접촉 1번당 하루 감염 확률)
+    "recovery_days": 7,       # 회복 기간 (일)
+    "fatality": 0.05,          # 치사율
+    "initial_infected": 3,     # 초기 감염자 수
+    "quarantine": False,       # 격리 on/off
+    "trace_depth": 1,          # 추적 깊이 (1 또는 2)
+    "confirm_delay": 3,     # 감염 후 확진까지 걸리는 일수
     # 실험
-    "n_runs": None,            # 몬테카를로 반복 횟수
-    "beds": None,              # 병상 수
-    "seed": None,              # 난수 seed (같은 seed → 같은 결과)
+    "n_runs": 10,            # 몬테카를로 반복 횟수
+    "beds": 20,              # 병상 수
+    "seed": 42,              # 난수 seed (같은 seed → 같은 결과)
 }
 
 # simulate()에 넘기는 키 목록 (monte_carlo.py에서 DEFAULT_PARAMS 중 이것만 골라 넘길 때 사용)
@@ -74,7 +73,7 @@ SIM_KEYS = ["beta", "recovery_days", "fatality", "initial_infected",
 # ------------------------------------------------------------
 # TODO [A] 프리셋 채우기. 키 이름은 DEFAULT_PARAMS와 같게, 바뀌는 값만 적는다.
 #   예: "독감형"(고전염·저치사), "고치사형"(저전염·고치사)
-PRESETS = {}
+PRESETS = {} # 코로나, A형 독감, B형 독감, 에볼라, 페스트, 감기, 천연두 
 
 
 # ------------------------------------------------------------

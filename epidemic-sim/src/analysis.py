@@ -25,7 +25,10 @@ def summarize(counts, population, beds=None):
     """
     # TODO [B] 정점: counts[I]에서 최댓값과 그 날짜
     # TODO [B] 누적 감염률: 마지막 날의 (R + D) / population
-    #          ※ 격리(Q) 중이던 감염자를 어떻게 셀지 함께 정하기
+    #          ※ 격리는 끝까지 Q라서, 감염된 채 격리된 사람은 R/D가 되지 않는다.
+    #            이 사람들을 감염자로 셀지 함께 정하기
+    #            (참고: simulate() 결과의 infected_by에는 감염된 적 있는 모든 사람이 들어 있어서
+    #             len(infected_by)가 "격리된 감염자까지 포함한 총 감염자 수"가 된다)
     # TODO [B] 병상 초과: peak_infected > beds
     pass
 

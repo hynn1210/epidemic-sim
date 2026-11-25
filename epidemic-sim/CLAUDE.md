@@ -42,6 +42,8 @@
 - S → I: 감염자(I)의 이웃이 S이면 전염률 `beta` 확률로 감염.
 - I → R / D: 감염 후 `recovery_days`가 지나면 치사율 `fatality` 확률로 D, 아니면 R.
 - 확진 → Q: 감염 후 `confirm_delay`일이 지나면 확진, 확진자 기준 추적 BFS로 접촉자를 Q로 전환. Q는 감염시키지도, 감염되지도 않음(확산 BFS에서 건너뜀).
+- **격리는 끝까지 유지**: 한번 Q가 되면 시뮬레이션이 끝날 때까지 Q. 회복·사망도 진행하지 않는다("확산에서 빠진 사람").
+- 재감염 없음: S만 감염된다. I, R(면역), D, Q는 다시 감염되지 않는다.
 - 종료: 감염자(I)가 0명이 되면 유행 종료로 판단.
 
 ### 프로그램 차원의 판단 (계획서의 "판단" 항목)
@@ -52,7 +54,7 @@
 
 ## 4. 입력 / 출력
 
-**입력 (사용자가 조절)**: 인구 수, 네트워크 종류(무작위형/허브형), 전염률, 회복 기간, 치사율, 초기 감염자 수, 반복 횟수, (선택) 병상 수, 격리 on/off 및 추적 깊이.
+**입력 (사용자가 조절)**: 인구 수, 슈퍼전파자 수, 전염률, 회복 기간, 치사율, 초기 감염자 수, 반복 횟수, (선택) 병상 수, 격리 on/off 및 추적 깊이.
 시나리오 프리셋 버튼(예: "독감형", "고치사형")으로 값을 한 번에 설정할 수 있게 한다.
 
 **초기 상태**: 초기 감염자 몇 명, 나머지 전부 S.
@@ -60,7 +62,8 @@
 **출력**:
 - 단계별 S·I·R·D(·Q) 인원 그래프 (몬테카를로 평균 + 범위 음영)
 - 감염 정점 시점, 최대 감염자 수, 최종 누적 감염률, 사망자 수, 유행 종료까지 걸린 기간
-- 노드 확산 시각화(단계별 색), 감염 경로 트리, 감염 세대(BFS 레벨)
+- **확산 과정 동적 화면**: 날짜 슬라이더 + 재생 버튼으로 노드 색이 하루씩 바뀌며 퍼지는 모습 (기록된 `history`를 재생)
+- (선택) 재생에 맞춰 함께 그려지는 곡선, 세대별 감염자 수(BFS 레벨)
 - 격리 전후 비교, 의료 과부하 여부
 
 ---
@@ -74,7 +77,7 @@
 3. **이론 비교 (선택, 우선순위 마지막)**: 완전 혼합 네트워크에서 몬테카를로 평균 곡선과 SIR 미분방정식 곡선 비교.
    - 하게 되면 `scipy` 대신 **오일러 방법(하루씩 더해 가는 `for` 반복문)**으로 단순하게 구현.
    - 시뮬레이션은 "정확히 며칠 뒤 회복", 방정식은 "매일 일정 비율 회복"이라 곡선이 완전히 같지는 않음 → 추세·정점 시점이 비슷한지만 본다.
-4. **한계 명시**: 연령, 잠복기, 백신 등은 단순화했다고 보고서에 명시.
+4. **한계 명시**: 연령, 잠복기, 백신(**넣지 않기로 확정**), 사람마다 다른 회복·확진 기간, 격리 해제 등은 단순화했다고 보고서에 명시.
 
 ---
 
@@ -88,7 +91,7 @@
 | 감염병 특성별 비교: 고전염·저치사 vs 저전염·고치사 피해 양상 | A |
 | 의료 자원 계획: 병상 수 대비 최대 감염자 수·시점 예측 | A |
 | 방역 정책 비교: 격리 없음 / 1단계 / 2단계에서 정점이 얼마나 낮아지고 늦춰지는지 | B |
-| 네트워크 구조 비교: 무작위형 vs 허브형 확산 속도·규모 | B |
+| 슈퍼전파자 비교: 슈퍼전파자 0명 vs 3명 vs 6명일 때 확산 속도·규모 | B |
 
 추가 활용 포인트(보고서용): 교육용 도구("곡선을 평평하게" 체감), 학교·기관 대비(소규모 집단 확진자 발생 시 확산 규모 예측).
 
@@ -125,14 +128,14 @@ epidemic-sim/
 ├── src/
 │   ├── __init__.py
 │   ├── config.py           # [공통] 상태 이름(S,I,R,D,Q), 색상, 기본 파라미터, 시나리오 프리셋 값
-│   ├── network.py          # [A] 무작위형/허브형 네트워크 생성
+│   ├── network.py          # [A] 무작위형 네트워크 + 슈퍼전파자 추가
 │   ├── simulation.py       # [공통] 구역별 담당: 반복문 뼈대·기록[공통], 확산·회복/사망[A], 확진·격리[B]
 │   ├── theory.py           # [A, 선택] SIR 미분방정식 (오일러 방법)
-│   ├── tracing.py          # [B] trace_contacts() 추적 BFS, infection_generations() 감염 세대
+│   ├── tracing.py          # [B] trace_contacts() 추적 BFS, (선택) infection_generations() 감염 세대
 │   ├── monte_carlo.py      # [B] 반복 실행, 평균·범위, 조건별 비교
 │   ├── analysis.py         # [B] 정점 시점, 최종 감염률, 병상 초과 판단
 │   ├── plot_curves.py      # [A] S·I·R·D 곡선 (+ 범위 음영, 이론 곡선은 선택)
-│   └── plot_network.py     # [B] 노드 확산 그림, 감염 경로 트리, GIF
+│   └── plot_network.py     # [B] 노드 위치 고정, 하루치 노드 그림 (재생 화면에서 사용)
 │
 ├── notebooks/
 │   ├── A_dev.ipynb         # [A] 개인 실험용
@@ -144,7 +147,7 @@ epidemic-sim/
 │   ├── test_basic.py       # [공통] 임계값 테스트, seed 재현성 확인
 │   └── fake_data.py        # [공통] 합의한 반환 형식의 가짜 결과 (진짜 엔진 완성 전 개발용)
 │
-├── results/                # 보고서용 그림, GIF (자동 저장)
+├── results/                # 보고서용 그림 (save_figure로 저장)
 └── docs/                   # 계획서, 보고서, 발표 자료
 ```
 
@@ -156,13 +159,13 @@ epidemic-sim/
 
 | 구분 | A (확산과 특성 분석) | B (추적과 정책 비교) |
 |---|---|---|
-| BFS 응용 | 확산 BFS (S→I) | 추적 BFS (깊이 제한) + 감염 세대(BFS 레벨) |
+| BFS 응용 | 확산 BFS (S→I) | 추적 BFS (깊이 제한) + (선택) 감염 세대(BFS 레벨) |
 | 상태 전이 | I→R/D (`simulation.py`의 [A] 구역) | 확진 판단 → Q 전환 (`simulation.py`의 [B] 구역) |
 | 핵심 구조 | 확산 단계 구현 | 몬테카를로 반복, 평균·범위 계산 |
 | 판단·분석 | 임계값 실험, (선택) 이론 비교 | 정점·감염률·병상 초과 판단 (`analysis.py`) |
-| 활용 실험 | 감염병 특성별 비교, 의료 자원 계획 | 방역 정책 비교, 네트워크 구조 비교 |
-| 시각화 | S·I·R·D 곡선 그래프 | 노드 확산 그림, 감염 경로 트리, GIF |
-| 화면(`app.py`) | 사이드바 슬라이더, 시나리오 프리셋, 곡선 영역 | 날짜 슬라이더 + 노드 그림 탭, 과부하 경고, 격리 전후 비교 |
+| 활용 실험 | 감염병 특성별 비교, 의료 자원 계획 | 방역 정책 비교, 슈퍼전파자 비교 |
+| 시각화 | S·I·R·D 곡선 그래프, (선택) 재생용 날짜별 곡선 | 하루치 노드 그림 |
+| 화면(`app.py`) | 사이드바 슬라이더, 시나리오 프리셋, 곡선 영역 | 확산 재생 탭(날짜 슬라이더 + 재생 버튼), 과부하 경고, 격리 전후 비교 |
 | 파일 | `network.py`, `plot_curves.py`, (`theory.py`) + `simulation.py`의 [A] 구역 | `tracing.py`, `monte_carlo.py`, `analysis.py`, `plot_network.py` + `simulation.py`의 [B] 구역 |
 
 **공통**: 첫날 최소 버전 `simulate()` 함께 구현, `simulation.py`의 반복문 뼈대·하루 기록, `config.py`·인터페이스·가짜 데이터 합의, 테스트, 활용 실험 노트북, 계획서·보고서·발표.
@@ -176,7 +179,7 @@ epidemic-sim/
 
 ### 한쪽이 밀릴 때 넘길 수 있는 일
 - **A가 밀릴 때 → B에게**: 임계값 실험, 곡선 그래프의 몬테카를로 범위 음영.
-- **B가 밀릴 때 → A에게**: 네트워크 구조 비교 실험, 과부하 경고 화면.
+- **B가 밀릴 때 → A에게**: 슈퍼전파자 비교 실험, 과부하 경고 화면.
 
 ---
 
@@ -187,20 +190,20 @@ epidemic-sim/
 
 ### 이름 규칙 (`src/config.py`에 정의)
 - 상태: `S, I, R, D, Q`, 목록 `STATES`, 색 `STATE_COLORS`
-- 네트워크 종류: `NETWORK_RANDOM = "random"`, `NETWORK_HUB = "hub"`
+- 네트워크: 무작위형 한 종류 + 슈퍼전파자. `AVG_DEGREE`(보통 사람의 평균 친구 수), `SUPERSPREADER_FRIENDS`(슈퍼전파자의 친구 수)
 - 파라미터 딕셔너리 `params`의 키는 `DEFAULT_PARAMS`의 키를 그대로 쓴다:
-  `population, network_kind, beta, recovery_days, fatality, initial_infected, quarantine, trace_depth, confirm_delay, n_runs, beds, seed`
+  `population, n_superspreaders, beta, recovery_days, fatality, initial_infected, quarantine, trace_depth, confirm_delay, n_runs, beds, seed`
 - 그중 `simulate()`에 넘기는 키는 `SIM_KEYS` (= `simulate()`의 인자 이름과 같음)
 - 시뮬레이션 공용 변수: `states`, `infected_day`, `infected_by`, `day`, `rng`(= `random.Random(seed)`, 난수는 반드시 `rng`로만)
 
 ### 주요 함수 (파일별)
-- `network.py` [A]: `make_random_network`, `make_hub_network`, `make_network`, (선택) `make_complete_network`
+- `network.py` [A]: `make_random_network`, `add_superspreaders`, `make_network(population, n_superspreaders, seed)`, (선택) `make_complete_network`
 - `simulation.py`: `simulate`, `record_day` [공통] / `spread_step`, `progress_step` [A] / `quarantine_step` [B]
-- `tracing.py` [B]: `trace_contacts`, `infection_generations`
+- `tracing.py` [B]: `trace_contacts`, (선택) `infection_generations`
 - `monte_carlo.py` [B]: `run_monte_carlo(graph, params, n_runs, seed)` → `{"mean","min","max","runs"}`, `align_lengths`, `compare_conditions(graph, base_params, conditions, n_runs, seed)`
 - `analysis.py` [B]: `summarize(counts, population, beds)` → `{"peak_day","peak_infected","attack_rate","deaths","duration","overload"}`, `overload_days`, `compare_summary`
-- `plot_curves.py` [A]: `plot_sird`, `plot_compare`, `save_figure`, (선택) `plot_with_theory`
-- `plot_network.py` [B]: `compute_layout`, `draw_day`, `draw_infection_tree`, `save_gif`
+- `plot_curves.py` [A]: `plot_sird`, `plot_compare`, `save_figure`, (선택) `plot_counts_until`, (선택) `plot_with_theory`
+- `plot_network.py` [B]: `compute_layout`, `draw_day`
 - `theory.py` [A, 선택]: `solve_sir_euler`
 - `app.py`: `draw_sidebar`, `draw_curves` [A] / `draw_summary`, `draw_network_tab`, `draw_quarantine_compare` [B] / `main` [공통]
 - 그림 함수는 모두 matplotlib `fig`를 반환한다 (Streamlit은 `st.pyplot(fig)`, 저장은 `save_figure`).
@@ -229,7 +232,7 @@ def simulate(graph, beta, recovery_days, fatality, initial_infected,
     {
       "counts": {"S": [...], "I": [...], "R": [...], "D": [...], "Q": [...]},  # 단계별 인원 수
       "history": [ {node: state, ...}, ... ],                                # 단계별 노드 상태
-      "infected_by": {node: parent_node, ...},                               # 감염 경로 (트리용)
+      "infected_by": {node: parent_node, ...},                               # 감염 경로 (감염 세대 계산용)
       "sources": [...],                                                      # 최초 감염자
     }
     """
@@ -245,8 +248,9 @@ def simulate(graph, beta, recovery_days, fatality, initial_infected,
 
 - `networkx` + `matplotlib`. **노드 위치(`spring_layout(seed=42)`)는 한 번만 계산해 고정**.
 - 색: S=lightgray, I=red, R=green, D=black, Q=blue. 최초 감염자는 굵은 테두리. (`config.py`에 정의)
-- 노드 수 100~300명 권장. 허브형은 연결 수에 비례해 노드 크기 조절.
-- 출력 방식: GIF(`FuncAnimation`, 보고서용), Streamlit 날짜 슬라이더(시연용, 추천), pyvis(선택).
+- 노드 수 100~300명 권장. 연결 수에 비례해 노드 크기를 키워 슈퍼전파자가 눈에 띄게.
+- 출력 방식: **Streamlit 날짜 슬라이더 + 재생 버튼**. 시뮬레이션이 끝난 뒤 `history`를 하루씩 `draw_day()`로 다시 그려 `st.empty()` 자리에 덮어쓴다(`time.sleep`으로 속도 조절).
+- **제외한 것**: GIF, 감염 경로 트리, plotly 애니메이션, pyvis (만들지 않음).
 
 ---
 
@@ -273,11 +277,12 @@ def simulate(graph, beta, recovery_days, fatality, initial_infected,
 - [ ] 발표 자료 및 시연 리허설
 
 ### A (확산과 특성 분석)
-- [ ] `network.py`: 무작위형(`erdos_renyi_graph`), 허브형(`barabasi_albert_graph`) 생성
+- [ ] `network.py`: 무작위형(`erdos_renyi_graph`) + 슈퍼전파자 추가(`add_superspreaders`)
 - [ ] `simulation.py` [A] 구역: `spread_step()` 확산 BFS, Q 노드 건너뛰기
 - [ ] `simulation.py` [A] 구역: `progress_step()` — 회복 기간 경과 시 치사율로 R/D 결정
 - [ ] 임계값 실험
 - [ ] `plot_curves.py`: S·I·R·D(·Q) 곡선, 몬테카를로 범위 음영
+- [ ] (선택) `plot_curves.py`: `plot_counts_until()` — 재생 화면에서 노드 그림과 함께 움직이는 곡선
 - [ ] `app.py`: 사이드바 슬라이더, 시나리오 프리셋 버튼, 곡선 영역
 - [ ] 활용 실험: 감염병 특성별 비교, 의료 자원 계획(병상 수 대비 정점)
 - [ ] (선택, 우선순위 마지막) `theory.py`: 오일러 방법 SIR 곡선과 비교
@@ -286,12 +291,12 @@ def simulate(graph, beta, recovery_days, fatality, initial_infected,
 - [ ] 가짜 데이터로 노드 시각화 프로토타입
 - [ ] `tracing.py`: `trace_contacts()` 깊이 제한 BFS (`deque` 직접 구현)
 - [ ] `simulation.py` [B] 구역: `quarantine_step()` 확진 판단 → 추적 → Q 전환
-- [ ] `tracing.py`: `infection_generations()` 감염 세대 계산
+- [ ] (선택) `tracing.py`: `infection_generations()` → 세대별 감염자 수 표시
 - [ ] `monte_carlo.py`: 반복 평균·최소·최대, 조건별 비교
 - [ ] `analysis.py`: `summarize()` 정점 시점, 최종 감염률, 병상 초과 판단
-- [ ] `plot_network.py`: 노드 확산 그림, 감염 경로 트리, GIF 저장
-- [ ] `app.py`: 날짜 슬라이더 + 노드 그림 탭, 과부하 경고, 격리 전후 비교
-- [ ] 활용 실험: 방역 정책 비교(격리 없음/1단계/2단계), 네트워크 구조 비교(무작위형/허브형)
+- [ ] `plot_network.py`: `compute_layout`, `draw_day` (가짜 데이터로 먼저)
+- [ ] `app.py`: 확산 재생 탭(날짜 슬라이더 + 재생 버튼), 과부하 경고, 격리 전후 비교
+- [ ] 활용 실험: 방역 정책 비교(격리 없음/1단계/2단계), 슈퍼전파자 비교(0명/3명/6명)
 
 ---
 
@@ -301,7 +306,7 @@ def simulate(graph, beta, recovery_days, fatality, initial_infected,
 - Kermack & McKendrick (1927): SIR 모델의 원조.
 - Daley & Kendall, "Epidemics and Rumours", Nature 204, 1118 (1964). https://doi.org/10.1038/2041118a0 (소문 주제 시절 기준 논문)
 - Moreno, Nekovee, Pacheco, "Dynamics of Rumor Spreading in Complex Networks", Phys. Rev. E 69, 066130 (2004). https://arxiv.org/abs/cond-mat/0312131 (네트워크 위 몬테카를로 확산)
-- Nekovee et al., "Theory of Rumour Spreading in Complex Social Networks" (2008). https://arxiv.org/abs/0807.1458 (허브형 네트워크가 더 빨리 퍼짐)
+- Nekovee et al., "Theory of Rumour Spreading in Complex Social Networks" (2008). https://arxiv.org/abs/0807.1458 (친구가 많은 소수가 있으면 더 빨리 퍼짐 — 슈퍼전파자 비교의 근거)
 
 **실제 데이터 적용 사례 (근거 보강용)**
 - "Using Epidemiological Models to Predict the Spread of Information on Twitter", Algorithms (MDPI, 2023). https://www.mdpi.com/1999-4893/16/8/391

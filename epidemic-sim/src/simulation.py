@@ -16,6 +16,12 @@
 #   day          = 오늘 날짜 (0부터 시작)
 #   rng          = 난수 생성기 (random.Random(seed)). 난수는 반드시 rng로만 뽑는다 → 같은 seed면 같은 결과
 #
+# 확정 규칙
+#   - S인 사람만 감염된다. I(이미 감염), R(면역), D, Q는 다시 감염되지 않는다.
+#   - 격리(Q)는 끝까지 유지한다. 한번 Q가 되면 시뮬레이션이 끝날 때까지 Q이고,
+#     감염시키지도, 감염되지도, 회복·사망하지도 않는다. ("확산에서 빠진 사람")
+#   - 감염자(I)가 0명이 되면 종료한다. (Q가 된 감염자는 I로 세지 않는다)
+#
 # 주의: BFS는 networkx 함수(bfs_tree 등)를 쓰지 말고 collections.deque 로 직접 구현한다.
 
 import random
@@ -29,7 +35,7 @@ from src.tracing import trace_contacts
 # [공통] 반복문 뼈대 — 첫날 함께 만드는 최소 버전
 # ------------------------------------------------------------
 def simulate(graph, beta, recovery_days, fatality, initial_infected,
-             quarantine=False, trace_depth=1, confirm_delay=2, seed=None):
+             quarantine=False, trace_depth=1, confirm_delay=3, seed=None):
     """
     감염병 확산을 하루 단위로 시뮬레이션한다.
 
@@ -82,6 +88,7 @@ def spread_step(graph, states, infected_day, infected_by, day, beta, rng):
 def progress_step(states, infected_day, day, recovery_days, fatality, rng):
     """감염 후 recovery_days가 지난 I를 fatality 확률로 D, 아니면 R로 바꾼다."""
     # TODO [A] I인 사람 중 (day - infected_day[사람]) >= recovery_days 인 사람 찾기
+    #          (Q인 사람은 끝까지 Q이므로 여기서 건드리지 않는다)
     # TODO [A] rng.random() < fatality 이면 D, 아니면 R
     pass
 
@@ -97,6 +104,8 @@ def quarantine_step(graph, states, infected_day, day, confirm_delay, trace_depth
     """
     # TODO [B] 확진자 찾기: I이면서 (day - infected_day[사람]) == confirm_delay 인 사람
     # TODO [B] trace_contacts(graph, 확진자들, trace_depth) 호출
-    # TODO [B] 찾은 사람 중 S 또는 I인 사람을 Q로 전환 (R, D는 그대로)
+    # TODO [B] 찾은 사람 중 S 또는 I인 사람을 Q로 전환 (R, D, 이미 Q인 사람은 그대로)
+    #          접촉자는 실제 감염 여부를 따지지 않고 일단 격리한다
+    #          격리는 해제하지 않는다 (끝까지 Q)
     # TODO [B] 확진자 본인도 Q로 바꿀지 첫날 함께 정하기
     pass
