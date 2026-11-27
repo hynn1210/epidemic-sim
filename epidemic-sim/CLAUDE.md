@@ -129,9 +129,9 @@ epidemic-sim/
 │   ├── __init__.py
 │   ├── config.py           # [공통] 상태 이름(S,I,R,D,Q), 색상, 기본 파라미터, 시나리오 프리셋 값
 │   ├── network.py          # [A] 무작위형 네트워크 + 슈퍼전파자 추가
-│   ├── simulation.py       # [공통] 구역별 담당: 반복문 뼈대·기록[공통], 확산·회복/사망[A], 확진·격리[B]
+│   ├── simulation.py       # [A] simulate() 반복문, 확산 BFS, 회복/사망 (격리는 tracing.py를 호출만)
 │   ├── theory.py           # [A, 선택] SIR 미분방정식 (오일러 방법)
-│   ├── tracing.py          # [B] trace_contacts() 추적 BFS, (선택) infection_generations() 감염 세대
+│   ├── tracing.py          # [B] trace_contacts() 추적 BFS, quarantine_step() 확진·격리, (선택) infection_generations()
 │   ├── monte_carlo.py      # [B] 반복 실행, 평균·범위, 조건별 비교
 │   ├── analysis.py         # [B] 정점 시점, 최종 감염률, 병상 초과 판단
 │   ├── plot_curves.py      # [A] S·I·R·D 곡선 (+ 범위 음영, 이론 곡선은 선택)
@@ -160,22 +160,22 @@ epidemic-sim/
 | 구분 | A (확산과 특성 분석) | B (추적과 정책 비교) |
 |---|---|---|
 | BFS 응용 | 확산 BFS (S→I) | 추적 BFS (깊이 제한) + (선택) 감염 세대(BFS 레벨) |
-| 상태 전이 | I→R/D (`simulation.py`의 [A] 구역) | 확진 판단 → Q 전환 (`simulation.py`의 [B] 구역) |
-| 핵심 구조 | 확산 단계 구현 | 몬테카를로 반복, 평균·범위 계산 |
+| 상태 전이 | I→R/D (`simulation.py`) | 확진 판단 → Q 전환 (`tracing.py`의 `quarantine_step`) |
+| 핵심 구조 | `simulate()` 반복문, 하루 기록, 종료 조건 | 몬테카를로 반복, 평균·범위 계산 |
 | 판단·분석 | 임계값 실험, (선택) 이론 비교 | 정점·감염률·병상 초과 판단 (`analysis.py`) |
 | 활용 실험 | 감염병 특성별 비교, 의료 자원 계획 | 방역 정책 비교, 슈퍼전파자 비교 |
 | 시각화 | S·I·R·D 곡선 그래프, (선택) 재생용 날짜별 곡선 | 하루치 노드 그림 |
 | 화면(`app.py`) | 사이드바 슬라이더, 시나리오 프리셋, 곡선 영역 | 확산 재생 탭(날짜 슬라이더 + 재생 버튼), 과부하 경고, 격리 전후 비교 |
-| 파일 | `network.py`, `plot_curves.py`, (`theory.py`) + `simulation.py`의 [A] 구역 | `tracing.py`, `monte_carlo.py`, `analysis.py`, `plot_network.py` + `simulation.py`의 [B] 구역 |
+| 파일 | `network.py`, `simulation.py`, `plot_curves.py`, (`theory.py`) | `tracing.py`, `monte_carlo.py`, `analysis.py`, `plot_network.py` |
 
-**공통**: 첫날 최소 버전 `simulate()` 함께 구현, `simulation.py`의 반복문 뼈대·하루 기록, `config.py`·인터페이스·가짜 데이터 합의, 테스트, 활용 실험 노트북, 계획서·보고서·발표.
+**공통**: 첫날 최소 버전 `simulate()` 함께 구현(이후 관리는 A), `config.py`·인터페이스·가짜 데이터 합의, 테스트, 활용 실험 노트북, 계획서·보고서·발표.
 
-### `simulation.py` 소유권 (공통 파일, 구역별 담당)
-- 파일은 함께 쓰되 **구역별로 주인이 있다**: 반복문 뼈대·하루 기록·반환 형식 [공통], 확산·회복/사망 [A], 확진 판단·격리 [B].
-- 자기 구역만 수정한다. [공통] 구역은 바꿀 때 반드시 상의한다.
-- 기능 하나를 끝낼 때마다 `main`에 병합하고, 병합 후 `tests/test_basic.py`를 실행한다.
-- 첫날 함께 만든 최소 버전(S→I + I→R) 덕분에 B는 첫날부터 진짜 결과로 작업할 수 있다.
-- **해 보고 너무 비효율적이면 파일 전체를 A 담당으로 옮긴다.** 이때 B의 격리 구역은 `tracing.py`로 옮기고 `simulation.py`는 호출만 한다.
+### `simulation.py` 소유권 (A 담당으로 확정)
+- 처음에는 구역별 공동 파일이었으나, 한 파일을 둘이 고치면 꼬일 수 있어 **A 담당으로 옮겼다.**
+- 첫날 최소 버전(S→I + I→R)만 B와 함께 작성하고, 이후는 A만 수정한다.
+- B의 격리 기능(`quarantine_step`)은 `tracing.py`에 있고, `simulation.py`는 이를 한 줄로 호출만 한다.
+- **A와 B의 약속**: `quarantine_step(graph, states, infected_day, day, confirm_delay, trace_depth)` → 새로 격리된 사람 목록. 이름·인자·반환값을 바꿀 때는 상의한다.
+- `simulate()`의 반환 형식과 공용 변수(`states`, `infected_day`, `day`)의 의미는 B도 쓰므로, 바꿀 때 상의한다.
 
 ### 한쪽이 밀릴 때 넘길 수 있는 일
 - **A가 밀릴 때 → B에게**: 임계값 실험, 곡선 그래프의 몬테카를로 범위 음영.
@@ -198,8 +198,8 @@ epidemic-sim/
 
 ### 주요 함수 (파일별)
 - `network.py` [A]: `make_random_network`, `add_superspreaders`, `make_network(population, n_superspreaders, seed)`, (선택) `make_complete_network`
-- `simulation.py`: `simulate`, `record_day` [공통] / `spread_step`, `progress_step` [A] / `quarantine_step` [B]
-- `tracing.py` [B]: `trace_contacts`, (선택) `infection_generations`
+- `simulation.py` [A]: `simulate`, `record_day`, `spread_step`, `progress_step`
+- `tracing.py` [B]: `trace_contacts`, `quarantine_step`, (선택) `infection_generations`
 - `monte_carlo.py` [B]: `run_monte_carlo(graph, params, n_runs, seed)` → `{"mean","min","max","runs"}`, `align_lengths`, `compare_conditions(graph, base_params, conditions, n_runs, seed)`
 - `analysis.py` [B]: `summarize(counts, population, beds)` → `{"peak_day","peak_infected","attack_rate","deaths","duration","overload"}`, `overload_days`, `compare_summary`
 - `plot_curves.py` [A]: `plot_sird`, `plot_compare`, `save_figure`, (선택) `plot_counts_until`, (선택) `plot_with_theory`
@@ -216,16 +216,16 @@ epidemic-sim/
 ### `simulate()` 요약
 
 ```python
-# src/simulation.py ([공통], 구역별 담당)
+# src/simulation.py (A)
 def simulate(graph, beta, recovery_days, fatality, initial_infected,
-             quarantine=False, trace_depth=1, confirm_delay=2, seed=None):   # [공통]
+             quarantine=False, trace_depth=1, confirm_delay=3, seed=None):
     """
     매일 반복:
         spread_step(...)        # [A] 확산 BFS (S→I)
         progress_step(...)      # [A] I→R/D
         if quarantine:
-            quarantine_step(...)    # [B] 확진 판단 + 추적 BFS(tracing.py) + Q 전환
-        record_day(...)         # [공통] 하루 기록
+            quarantine_step(...)    # [B] tracing.py의 함수를 호출: 확진 판단 + 추적 BFS + Q 전환
+        record_day(...)         # [A] 하루 기록
     I가 0명이 되면 종료.
 
     반환값:
@@ -267,7 +267,6 @@ def simulate(graph, beta, recovery_days, fatality, initial_infected,
 
 **3단계: 통합**
 - [ ] `simulate()`에서 격리 단계 켜고 함께 디버깅
-- [ ] `simulation.py` 공동 작업이 비효율적인지 점검 → 그렇다면 A 담당으로 옮기기 (9절)
 - [ ] `tests/test_basic.py`: seed 재현성, 임계값 조건 테스트
 
 **4단계: 결과물**
@@ -278,8 +277,9 @@ def simulate(graph, beta, recovery_days, fatality, initial_infected,
 
 ### A (확산과 특성 분석)
 - [ ] `network.py`: 무작위형(`erdos_renyi_graph`) + 슈퍼전파자 추가(`add_superspreaders`)
-- [ ] `simulation.py` [A] 구역: `spread_step()` 확산 BFS, Q 노드 건너뛰기
-- [ ] `simulation.py` [A] 구역: `progress_step()` — 회복 기간 경과 시 치사율로 R/D 결정
+- [ ] `simulation.py`: 최소 버전 확장 — `simulate()` 종료 조건, `record_day()`, `quarantine_step()` 호출 연결
+- [ ] `simulation.py`: `spread_step()` 확산 BFS, Q 노드 건너뛰기
+- [ ] `simulation.py`: `progress_step()` — 회복 기간 경과 시 치사율로 R/D 결정
 - [ ] 임계값 실험
 - [ ] `plot_curves.py`: S·I·R·D(·Q) 곡선, 몬테카를로 범위 음영
 - [ ] (선택) `plot_curves.py`: `plot_counts_until()` — 재생 화면에서 노드 그림과 함께 움직이는 곡선
@@ -290,7 +290,7 @@ def simulate(graph, beta, recovery_days, fatality, initial_infected,
 ### B (추적과 정책 비교)
 - [ ] 가짜 데이터로 노드 시각화 프로토타입
 - [ ] `tracing.py`: `trace_contacts()` 깊이 제한 BFS (`deque` 직접 구현)
-- [ ] `simulation.py` [B] 구역: `quarantine_step()` 확진 판단 → 추적 → Q 전환
+- [ ] `tracing.py`: `quarantine_step()` 확진 판단 → 추적 → Q 전환
 - [ ] (선택) `tracing.py`: `infection_generations()` → 세대별 감염자 수 표시
 - [ ] `monte_carlo.py`: 반복 평균·최소·최대, 조건별 비교
 - [ ] `analysis.py`: `summarize()` 정점 시점, 최종 감염률, 병상 초과 판단
